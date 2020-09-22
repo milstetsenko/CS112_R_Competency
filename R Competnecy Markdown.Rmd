@@ -1,0 +1,116 @@
+---
+title: "R Competency"
+author: "Milana Stetsenko"
+date: "Spetember 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Step 1
+
+I have downloaded the data on my computer and improted it into the R Studio as a csv file. I have also removed any empty values and converted them to N/As. Then, I have checked the dimensions of the data to see what it looks like and to get an understanding of the rows and columns so then I could see whether any changes and trims occured.
+```{r, inlcude=TRUE}
+rm(list=ls())
+gender_data <- read.csv("/Users/milanastetsenko/Documents/Coding/R/R Assignments/R Competency/odp_contributionsbygender.csv", header=TRUE, na.strings=c(""," ","NA"))
+dim(gender_data)
+head(gender_data)
+```
+
+# Step 2
+
+I am now omititng all the rows with the N/A values so we could have a full analysis without any missing data in it for easier inference. As we can see from the difference in the dim(gender_data) and dim (gender_data1), we have ommited 5 rows
+```{r, include=TRUE}
+gender_data1<- na.omit(gender_data)
+```
+# Step 3
+I am converting the class of the data column to the date class. I had some issues and the date was outputting NA so i changed the sustem locale and it worked.
+```{r, include = TRUE}
+class(gender_data1$Last_Reporting_Date)
+
+gender_data1$Last_Reporting_Date<- as.Date(gender_data1$Last_Reporting_Date, "%d/%m/%Y")
+
+class(gender_data1$Last_Reporting_Date)
+head(gender_data1)
+```
+
+# Step 4
+Here I will analyze whether the goal of 20+% of women serving on mission  has been achieved in July 2019. I will create a subset of the dataset where the last reporting date is in July, then I will sum the number of women serving in Formed Police Units and the number of men (this tep is optional  I could just divide it by the total sum of both), and then will calucate the precentage of women out of all the units.
+
+```{r}
+
+july_2020<-subset(gender_data1, gender_data1$Last_Reporting_Date =="2020-07-31")
+
+#women_police_units <- gender_data1$Personnel_Type == "Formed Police Units"
+women_police_units<-sum(july_2020[which(july_2020$Personnel_Type== "Formed Police Units"),7])
+women_police_units
+men_police_units<-sum(july_2020[which(july_2020$Personnel_Type== "Formed Police Units"),8])
+men_police_units
+percentage_women<-(women_police_units/(men_police_units+women_police_units))*100
+percentage_women
+```
+
+The percentage turns out to be 10.9% so their goal was not achieved but the number of women serving is increasing and hopefully, they will achieve their goal by 2028.
+
+# Step 5
+Here, I will plot the outcomes of the step 4 together with the other prediction and exisitng data provided by UN.
+```{r, include =FALSE}
+library(ggplot2)
+```
+
+```{r, inlude = TRUE}
+
+#creating a dataframe with necessary values
+Years<-c('2017', '2018', '2019', '2020 July', '2028')
+women_employed<-c(7,8,10.8,11,20)
+percentage_rate<- data.frame(Years, women_employed)
+percentage_rate
+p<-ggplot(data = percentage_rate, aes(x = Years, y = women_employed, fill = Years)) +
+  geom_bar(stat="identity", color = "lightblue") +
+  geom_text(aes(label=Years), vjust=1.6, color = 'black', size=4)+
+  theme_linedraw()
+p+scale_fill_brewer()
+```
+
+# Step 6
+I am trying to calculate country-dependent unique missions in Minerva cities. Here we can see that in Deutschland, we have 24 unique missions and they are also liste din the form of the list. You can cahnge the input to the function to learn about other Minerva countries.
+```{r}
+gender_data1$ISOCode3<- trimws(gender_data1$ISOCode3,which='both', whitespace = "[ \t\r\n]")
+minerva_missions<-function(ISO){
+  unique_missions<- list(unique(factor((gender_data1[which(gender_data1$ISOCode3 == ISO), 5]))))
+  output<- append(unique_missions, lengths(unique_missions))
+  return (output)
+}
+minerva_missions("DEU")
+minerva_countries <- c("USA", "DEU", "KOR", 'IND', "ARG", "GBR")
+for (country in minerva_countries) {
+  print(country)
+  print(minerva_missions(country))
+  }
+```
+
+# Step 7
+This step is about descriptive stats oof the data, mostly focusing on the personnel and dates. The highest and the lower points can be found looking at the lists, but the lowest points had multiple dates, when there was only one troop on the mission.
+```{r}
+library("dplyr" )
+gender_data1$Total_personnel = gender_data1$Female_Personnel+gender_data1$Male_Personnel
+#creating a subset of the df
+minusma <- subset(gender_data1, Mission_Acronym == "MINUSMA", select=c(ISOCode3, Total_personnel, Last_Reporting_Date))
+head(minusma)
+dim(minusma)
+#calculating the descriptive stats of the column Total_personnel
+round(mean(minusma$Total_personnel))
+median(minusma$Total_personnel)
+sapply(minusma, class)
+quantile(minusma$Total_personnel, probs=c(25/100, 75/100))
+
+min_value<-min(minusma$Total_personnel)
+max_value<-max(minusma$Total_personnel)
+lowest_point<- minusma[which(minusma$Total_personnel == 1), 3]
+head(lowest_point) #too many values for the output, remove head to see all the dates
+highest_point<- minusma[which(minusma$Total_personnel == 1726), 3]
+highest_point
+```
+
